@@ -26,7 +26,7 @@ public class DbgAllRoomsArePolicyListsCommand
         //check if user is admin in control room
         var botData = await ctx.Homeserver.GetAccountDataAsync<BotData>("gay.rory.moderation_bot_data");
         var controlRoom = ctx.Homeserver.GetRoom(botData.ControlRoom);
-        var isAdmin = (await controlRoom.GetPowerLevelsAsync())!.UserHasPermission(ctx.MessageEvent.Sender, "m.room.ban");
+        var isAdmin = (await controlRoom.GetPowerLevelsAsync())!.UserHasStatePermission(ctx.MessageEvent.Sender, "m.room.ban");
         if (!isAdmin) {
             // await ctx.Reply("You do not have permission to use this command!");
             await ctx.Homeserver.GetRoom(botData.LogRoom!).SendMessageEventAsync(
@@ -39,9 +39,9 @@ public class DbgAllRoomsArePolicyListsCommand
     public async Task Invoke(CommandContext ctx) {
         var botData = await ctx.Homeserver.GetAccountDataAsync<BotData>("gay.rory.moderation_bot_data");
         logRoom = ctx.Homeserver.GetRoom(botData.LogRoom ?? botData.ControlRoom);
-        
+
         var joinedRooms = await ctx.Homeserver.GetJoinedRooms();
-        
+
         await ctx.Homeserver.SetAccountDataAsync("gay.rory.moderation_bot.policy_lists", joinedRooms.ToDictionary(x => x.RoomId, x => new PolicyList() {
             Trusted = true
         }));

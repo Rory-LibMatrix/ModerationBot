@@ -26,7 +26,7 @@ public class DbgDumpActivePoliciesCommand
         //check if user is admin in control room
         var botData = await ctx.Homeserver.GetAccountDataAsync<BotData>("gay.rory.moderation_bot_data");
         var controlRoom = ctx.Homeserver.GetRoom(botData.ControlRoom);
-        var isAdmin = (await controlRoom.GetPowerLevelsAsync())!.UserHasPermission(ctx.MessageEvent.Sender, "m.room.ban");
+        var isAdmin = (await controlRoom.GetPowerLevelsAsync())!.UserHasStatePermission(ctx.MessageEvent.Sender, "m.room.ban");
         if (!isAdmin) {
             // await ctx.Reply("You do not have permission to use this command!");
             await ctx.Homeserver.GetRoom(botData.LogRoom!).SendMessageEventAsync(

@@ -41,12 +41,12 @@ public abstract class BasePolicy : EventContent {
         set => Expiry = value is null ? null : ((DateTimeOffset)value).ToUnixTimeMilliseconds();
     }
 
-#region Internal metadata
+    #region Internal metadata
 
     [JsonIgnore]
     public PolicyList PolicyList { get; set; }
 
     public StateEventResponse OriginalEvent { get; set; }
 
-#endregion
+    #endregion
 }

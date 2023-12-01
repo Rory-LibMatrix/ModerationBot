@@ -17,7 +17,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-<!--      <ProjectReference Include="..\..\..\ArcaneLibs\ArcaneLibs\ArcaneLibs.csproj" />-->
       <ProjectReference Include="..\..\LibMatrix\LibMatrix.csproj" />
       <ProjectReference Include="..\..\Utilities\LibMatrix.Utilities.Bot\LibMatrix.Utilities.Bot.csproj" />
   </ItemGroup>

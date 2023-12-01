@@ -26,7 +26,7 @@ public class DbgDumpAllStateTypesCommand
         //check if user is admin in control room
         var botData = await ctx.Homeserver.GetAccountDataAsync<BotData>("gay.rory.moderation_bot_data");
         var controlRoom = ctx.Homeserver.GetRoom(botData.ControlRoom);
-        var isAdmin = (await controlRoom.GetPowerLevelsAsync())!.UserHasPermission(ctx.MessageEvent.Sender, "m.room.ban");
+        var isAdmin = (await controlRoom.GetPowerLevelsAsync())!.UserHasStatePermission(ctx.MessageEvent.Sender, "m.room.ban");
         if (!isAdmin) {
             // await ctx.Reply("You do not have permission to use this command!");
             await ctx.Homeserver.GetRoom(botData.LogRoom!).SendMessageEventAsync(
@@ -58,7 +58,7 @@ public class DbgDumpAllStateTypesCommand
 
         return (memberRoom, SummariseStateTypeCounts(states));
     }
-    
+
     private static (string Raw, string Html) SummariseStateTypeCounts(IList<StateEventResponse> states) {
         string raw = "Count | State type | Mapped type", html = "<table><tr><th>Count</th><th>State type</th><th>Mapped type</th></tr>";
         var groupedStates = states.GroupBy(x => x.Type).ToDictionary(x => x.Key, x => x.ToList()).OrderByDescending(x => x.Value.Count);

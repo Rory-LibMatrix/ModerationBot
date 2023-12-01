@@ -11,9 +11,9 @@ using LibMatrix.Homeservers;
 using LibMatrix.Interfaces;
 using LibMatrix.RoomTypes;
 using LibMatrix.Services;
+using Microsoft.Extensions.Logging;
 using ModerationBot.AccountData;
 using ModerationBot.StateEventTypes;
-using Microsoft.Extensions.Logging;
 using ModerationBot.StateEventTypes.Policies;
 using ModerationBot.StateEventTypes.Policies.Implementations;
 
@@ -67,7 +67,7 @@ public class PolicyEngine(AuthenticatedHomeserverGeneric hs, ILogger<ModerationB
                 var progressMsgContent = MessageFormatter.FormatSuccess($"{policyLists.Count}/{PolicyListAccountData.Count} policy lists loaded, " +
                                                                         $"{policyLists.Sum(x => x.Policies.Count)} policies total, {sw.Elapsed} elapsed.")
                     .SetReplaceRelation<RoomMessageEventContent>(progressMessage.EventId);
-                
+
                 _logRoom?.SendMessageEventAsync(progressMsgContent);
             }
         }
@@ -99,8 +99,8 @@ public class PolicyEngine(AuthenticatedHomeserverGeneric hs, ILogger<ModerationB
 
         return policyList;
     }
-    
-    
+
+
     public async Task ReloadActivePolicyListById(string roomId) {
         if (!ActivePolicyLists.Any(x => x.Room.RoomId == roomId)) return;
         await LoadPolicyListAsync(hs.GetRoom(roomId), ActivePolicyLists.Single(x => x.Room.RoomId == roomId));
@@ -140,7 +140,7 @@ public class PolicyEngine(AuthenticatedHomeserverGeneric hs, ILogger<ModerationB
     public async Task<List<BasePolicy>> GetMatchingPolicies(StateEventResponse @event) {
         List<BasePolicy> matchingPolicies = new();
         if (@event.Sender == @hs.UserId) return matchingPolicies; //ignore self at all costs
-        
+
         if (ActivePoliciesByType.TryGetValue(nameof(ServerPolicyRuleEventContent), out var serverPolicies)) {
             var userServer = @event.Sender.Split(':', 2)[1];
             matchingPolicies.AddRange(serverPolicies.Where(x => x.Entity == userServer));
@@ -160,19 +160,19 @@ public class PolicyEngine(AuthenticatedHomeserverGeneric hs, ILogger<ModerationB
         return matchingPolicies;
     }
 
-#region Policy matching
+    #region Policy matching
 
     private async Task<List<BasePolicy>> CheckMessageContent(StateEventResponse @event) {
         var matchedRules = new List<BasePolicy>();
         var msgContent = @event.TypedContent as RoomMessageEventContent;
-        
+
         if (ActivePoliciesByType.TryGetValue(nameof(MessagePolicyContainsText), out var messageContainsPolicies))
             foreach (var policy in messageContainsPolicies) {
-                if((@msgContent?.Body?.ToLowerInvariant().Contains(policy.Entity.ToLowerInvariant()) ?? false) || (@msgContent?.FormattedBody?.ToLowerInvariant().Contains(policy.Entity.ToLowerInvariant()) ?? false))
+                if ((@msgContent?.Body?.ToLowerInvariant().Contains(policy.Entity.ToLowerInvariant()) ?? false) || (@msgContent?.FormattedBody?.ToLowerInvariant().Contains(policy.Entity.ToLowerInvariant()) ?? false))
                     matchedRules.Add(policy);
             }
-            
-        
+
+
         return matchedRules;
     }
 
@@ -238,17 +238,17 @@ public class PolicyEngine(AuthenticatedHomeserverGeneric hs, ILogger<ModerationB
                 //check pixels every 10% of the way through the image using ImageSharp
                 // var image = Image.Load(await _hs._httpClient.GetStreamAsync(resolvedUri));
             }
-        else logger.LogInformation("No active media file policies");        
+        else logger.LogInformation("No active media file policies");
         // logger.LogInformation("{url} did not match any rules", @event.RawContent["url"]);
 
         return matchedRules;
     }
 
-#endregion
+    #endregion
 
-#region Internal code
+    #region Internal code
 
-#region Summarisation
+    #region Summarisation
 
     private static (string Raw, string Html) SummariseStateTypeCounts(IList<StateEventResponse> states) {
         string raw = "Count | State type | Mapped type", html = "<table><tr><th>Count</th><th>State type</th><th>Mapped type</th></tr>";
@@ -262,8 +262,8 @@ public class PolicyEngine(AuthenticatedHomeserverGeneric hs, ILogger<ModerationB
         return (raw, html);
     }
 
-#endregion
+    #endregion
 
-#endregion
+    #endregion
 
 }

@@ -10,10 +10,10 @@ using LibMatrix.Responses;
 using LibMatrix.RoomTypes;
 using LibMatrix.Services;
 using LibMatrix.Utilities.Bot.Interfaces;
-using ModerationBot.AccountData;
-using ModerationBot.StateEventTypes;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using ModerationBot.AccountData;
+using ModerationBot.StateEventTypes;
 using ModerationBot.StateEventTypes.Policies;
 
 namespace ModerationBot;
@@ -74,9 +74,10 @@ public class ModerationBot(AuthenticatedHomeserverGeneric hs, ILogger<Moderation
         Task.Run(async () => {
             while (!cancellationToken.IsCancellationRequested) {
                 var controlRoomMembers = _controlRoom.GetMembersAsync();
+                var pls = await _controlRoom.GetPowerLevelsAsync();
                 await foreach (var member in controlRoomMembers) {
                     if ((member.TypedContent as RoomMemberEventContent)?
-                        .Membership == "join") admins.Add(member.StateKey);
+                        .Membership == "join" && pls.UserHasTimelinePermission(member.Sender, RoomMessageEventContent.EventId)) admins.Add(member.StateKey);
                 }
 
                 await Task.Delay(TimeSpan.FromMinutes(5), cancellationToken);
@@ -104,7 +105,7 @@ public class ModerationBot(AuthenticatedHomeserverGeneric hs, ILogger<Moderation
                 }
             }
         });
-        
+
         syncHelper.TimelineEventHandlers.Add(async @event => {
             var room = hs.GetRoom(@event.RoomId);
             try {
@@ -116,7 +117,7 @@ public class ModerationBot(AuthenticatedHomeserverGeneric hs, ILogger<Moderation
                         || @event.GetType.IsAssignableTo(typeof(PolicyRuleEventContent))
                     ))
                     await engine.ReloadActivePolicyListById(@event.RoomId);
-                
+
                 var rules = await engine.GetMatchingPolicies(@event);
                 foreach (var matchedRule in rules) {
                     await _logRoom.SendMessageEventAsync(MessageFormatter.FormatSuccessJson(
@@ -125,131 +126,131 @@ public class ModerationBot(AuthenticatedHomeserverGeneric hs, ILogger<Moderation
 
                 if (configuration.DemoMode) {
                     // foreach (var matchedRule in rules) {
-                        // await room.SendMessageEventAsync(MessageFormatter.FormatSuccessJson(
-                            // $"{MessageFormatter.HtmlFormatMessageLink(eventId: @event.EventId, roomId: room.RoomId, displayName: "Event")} matched {MessageFormatter.HtmlFormatMessageLink(eventId: @matchedRule.EventId, roomId: matchedRule.RoomId, displayName: "rule")}", @matchedRule.RawContent));
+                    // await room.SendMessageEventAsync(MessageFormatter.FormatSuccessJson(
+                    // $"{MessageFormatter.HtmlFormatMessageLink(eventId: @event.EventId, roomId: room.RoomId, displayName: "Event")} matched {MessageFormatter.HtmlFormatMessageLink(eventId: @matchedRule.EventId, roomId: matchedRule.RoomId, displayName: "rule")}", @matchedRule.RawContent));
                     // }
                     return;
                 }
-//
-//                 if (@event is { Type: "m.room.message", TypedContent: RoomMessageEventContent message }) {
-//                     if (message is { MessageType: "m.image" }) {
-//                         //check media
-//                         // var matchedPolicy = await CheckMedia(@event);
-//                         var matchedPolicy = rules.FirstOrDefault();
-//                         if (matchedPolicy is null) return;
-//                         var matchedpolicyData = matchedPolicy.TypedContent as MediaPolicyEventContent;
-//                         await _logRoom.SendMessageEventAsync(
-//                             new RoomMessageEventContent(
-//                                 body:
-//                                 $"User {MessageFormatter.HtmlFormatMention(@event.Sender)} posted an image in {MessageFormatter.HtmlFormatMention(room.RoomId)} that matched rule {matchedPolicy.StateKey}, applying action {matchedpolicyData.Recommendation}, as described in rule: {matchedPolicy.RawContent!.ToJson(ignoreNull: true)}",
-//                                 messageType: "m.text") {
-//                                 Format = "org.matrix.custom.html",
-//                                 FormattedBody =
-//                                     $"<font color=\"#FFFF00\">User {MessageFormatter.HtmlFormatMention(@event.Sender)} posted an image in {MessageFormatter.HtmlFormatMention(room.RoomId)} that matched rule {matchedPolicy.StateKey}, applying action {matchedpolicyData.Recommendation}, as described in rule: <pre>{matchedPolicy.RawContent!.ToJson(ignoreNull: true)}</pre></font>"
-//                             });
-//                         switch (matchedpolicyData.Recommendation) {
-//                             case "warn_admins": {
-//                                 await _controlRoom.SendMessageEventAsync(
-//                                     new RoomMessageEventContent(
-//                                         body: $"{string.Join(' ', admins)}\nUser {MessageFormatter.HtmlFormatMention(@event.Sender)} posted a banned image {message.Url}",
-//                                         messageType: "m.text") {
-//                                         Format = "org.matrix.custom.html",
-//                                         FormattedBody = $"{string.Join(' ', admins.Select(u => MessageFormatter.HtmlFormatMention(u)))}\n" +
-//                                                         $"<font color=\"#FF0000\">User {MessageFormatter.HtmlFormatMention(@event.Sender)} posted a banned image <a href=\"{message.Url}\">{message.Url}</a></font>"
-//                                     });
-//                                 break;
-//                             }
-//                             case "warn": {
-//                                 await room.SendMessageEventAsync(
-//                                     new RoomMessageEventContent(
-//                                         body: $"Please be careful when posting this image: {matchedpolicyData.Reason ?? "No reason specified"}",
-//                                         messageType: "m.text") {
-//                                         Format = "org.matrix.custom.html",
-//                                         FormattedBody =
-//                                             $"<font color=\"#FFFF00\">Please be careful when posting this image: {matchedpolicyData.Reason ?? "No reason specified"}</a></font>"
-//                                     });
-//                                 break;
-//                             }
-//                             case "redact": {
-//                                 await room.RedactEventAsync(@event.EventId, matchedpolicyData.Reason ?? "No reason specified");
-//                                 break;
-//                             }
-//                             case "spoiler": {
-//                                 // <blockquote>
-//                                 //  <a href=\"https://matrix.to/#/@emma:rory.gay\">@emma:rory.gay</a><br>
-//                                 //  <a href=\"https://codeberg.org/crimsonfork/CN\"></a>
-//                                 //  <font color=\"#dc143c\" data-mx-color=\"#dc143c\">
-//                                 //      <b>CN</b>
-//                                 //  </font>:
-//                                 //  <a href=\"https://the-apothecary.club/_matrix/media/v3/download/rory.gay/sLkdxUhipiQaFwRkXcPSRwdg\">test</a><br>
-//                                 //  <span data-mx-spoiler=\"\"><a href=\"https://the-apothecary.club/_matrix/media/v3/download/rory.gay/sLkdxUhipiQaFwRkXcPSRwdg\">
-//                                 //      <img src=\"mxc://rory.gay/sLkdxUhipiQaFwRkXcPSRwdg\" height=\"69\"></a>
-//                                 //  </span>
-//                                 // </blockquote>
-//                                 await room.SendMessageEventAsync(
-//                                     new RoomMessageEventContent(
-//                                         body:
-//                                         $"Please be careful when posting this image: {matchedpolicyData.Reason}, I have spoilered it for you:",
-//                                         messageType: "m.text") {
-//                                         Format = "org.matrix.custom.html",
-//                                         FormattedBody =
-//                                             $"<font color=\"#FFFF00\">Please be careful when posting this image: {matchedpolicyData.Reason}, I have spoilered it for you:</a></font>"
-//                                     });
-//                                 var imageUrl = message.Url;
-//                                 await room.SendMessageEventAsync(
-//                                     new RoomMessageEventContent(body: $"CN: {imageUrl}",
-//                                         messageType: "m.text") {
-//                                         Format = "org.matrix.custom.html",
-//                                         FormattedBody = $"""
-//                                                              <blockquote>
-//                                                                 <font color=\"#dc143c\" data-mx-color=\"#dc143c\">
-//                                                                     <b>CN</b>
-//                                                                 </font>:
-//                                                                 <a href=\"{imageUrl}\">{matchedpolicyData.Reason}</a><br>
-//                                                                 <span data-mx-spoiler=\"\">
-//                                                                     <a href=\"{imageUrl}\">
-//                                                                         <img src=\"{imageUrl}\" height=\"69\">
-//                                                                     </a>
-//                                                                 </span>
-//                                                              </blockquote>
-//                                                          """
-//                                     });
-//                                 await room.RedactEventAsync(@event.EventId, "Automatically spoilered: " + matchedpolicyData.Reason);
-//                                 break;
-//                             }
-//                             case "mute": {
-//                                 await room.RedactEventAsync(@event.EventId, matchedpolicyData.Reason);
-//                                 //change powerlevel to -1
-//                                 var currentPls = await room.GetPowerLevelsAsync();
-//                                 if (currentPls is null) {
-//                                     logger.LogWarning("Unable to get power levels for {room}", room.RoomId);
-//                                     await _logRoom.SendMessageEventAsync(
-//                                         MessageFormatter.FormatError($"Unable to get power levels for {MessageFormatter.HtmlFormatMention(room.RoomId)}"));
-//                                     return;
-//                                 }
-//
-//                                 currentPls.Users ??= new();
-//                                 currentPls.Users[@event.Sender] = -1;
-//                                 await room.SendStateEventAsync("m.room.power_levels", currentPls);
-//                                 break;
-//                             }
-//                             case "kick": {
-//                                 await room.RedactEventAsync(@event.EventId, matchedpolicyData.Reason);
-//                                 await room.KickAsync(@event.Sender, matchedpolicyData.Reason);
-//                                 break;
-//                             }
-//                             case "ban": {
-//                                 await room.RedactEventAsync(@event.EventId, matchedpolicyData.Reason);
-//                                 await room.BanAsync(@event.Sender, matchedpolicyData.Reason);
-//                                 break;
-//                             }
-//                             default: {
-//                                 throw new ArgumentOutOfRangeException("recommendation",
-//                                     $"Unknown response type {matchedpolicyData.Recommendation}!");
-//                             }
-//                         }
-//                     }
-//                 }
+                //
+                //                 if (@event is { Type: "m.room.message", TypedContent: RoomMessageEventContent message }) {
+                //                     if (message is { MessageType: "m.image" }) {
+                //                         //check media
+                //                         // var matchedPolicy = await CheckMedia(@event);
+                //                         var matchedPolicy = rules.FirstOrDefault();
+                //                         if (matchedPolicy is null) return;
+                //                         var matchedpolicyData = matchedPolicy.TypedContent as MediaPolicyEventContent;
+                //                         await _logRoom.SendMessageEventAsync(
+                //                             new RoomMessageEventContent(
+                //                                 body:
+                //                                 $"User {MessageFormatter.HtmlFormatMention(@event.Sender)} posted an image in {MessageFormatter.HtmlFormatMention(room.RoomId)} that matched rule {matchedPolicy.StateKey}, applying action {matchedpolicyData.Recommendation}, as described in rule: {matchedPolicy.RawContent!.ToJson(ignoreNull: true)}",
+                //                                 messageType: "m.text") {
+                //                                 Format = "org.matrix.custom.html",
+                //                                 FormattedBody =
+                //                                     $"<font color=\"#FFFF00\">User {MessageFormatter.HtmlFormatMention(@event.Sender)} posted an image in {MessageFormatter.HtmlFormatMention(room.RoomId)} that matched rule {matchedPolicy.StateKey}, applying action {matchedpolicyData.Recommendation}, as described in rule: <pre>{matchedPolicy.RawContent!.ToJson(ignoreNull: true)}</pre></font>"
+                //                             });
+                //                         switch (matchedpolicyData.Recommendation) {
+                //                             case "warn_admins": {
+                //                                 await _controlRoom.SendMessageEventAsync(
+                //                                     new RoomMessageEventContent(
+                //                                         body: $"{string.Join(' ', admins)}\nUser {MessageFormatter.HtmlFormatMention(@event.Sender)} posted a banned image {message.Url}",
+                //                                         messageType: "m.text") {
+                //                                         Format = "org.matrix.custom.html",
+                //                                         FormattedBody = $"{string.Join(' ', admins.Select(u => MessageFormatter.HtmlFormatMention(u)))}\n" +
+                //                                                         $"<font color=\"#FF0000\">User {MessageFormatter.HtmlFormatMention(@event.Sender)} posted a banned image <a href=\"{message.Url}\">{message.Url}</a></font>"
+                //                                     });
+                //                                 break;
+                //                             }
+                //                             case "warn": {
+                //                                 await room.SendMessageEventAsync(
+                //                                     new RoomMessageEventContent(
+                //                                         body: $"Please be careful when posting this image: {matchedpolicyData.Reason ?? "No reason specified"}",
+                //                                         messageType: "m.text") {
+                //                                         Format = "org.matrix.custom.html",
+                //                                         FormattedBody =
+                //                                             $"<font color=\"#FFFF00\">Please be careful when posting this image: {matchedpolicyData.Reason ?? "No reason specified"}</a></font>"
+                //                                     });
+                //                                 break;
+                //                             }
+                //                             case "redact": {
+                //                                 await room.RedactEventAsync(@event.EventId, matchedpolicyData.Reason ?? "No reason specified");
+                //                                 break;
+                //                             }
+                //                             case "spoiler": {
+                //                                 // <blockquote>
+                //                                 //  <a href=\"https://matrix.to/#/@emma:rory.gay\">@emma:rory.gay</a><br>
+                //                                 //  <a href=\"https://codeberg.org/crimsonfork/CN\"></a>
+                //                                 //  <font color=\"#dc143c\" data-mx-color=\"#dc143c\">
+                //                                 //      <b>CN</b>
+                //                                 //  </font>:
+                //                                 //  <a href=\"https://the-apothecary.club/_matrix/media/v3/download/rory.gay/sLkdxUhipiQaFwRkXcPSRwdg\">test</a><br>
+                //                                 //  <span data-mx-spoiler=\"\"><a href=\"https://the-apothecary.club/_matrix/media/v3/download/rory.gay/sLkdxUhipiQaFwRkXcPSRwdg\">
+                //                                 //      <img src=\"mxc://rory.gay/sLkdxUhipiQaFwRkXcPSRwdg\" height=\"69\"></a>
+                //                                 //  </span>
+                //                                 // </blockquote>
+                //                                 await room.SendMessageEventAsync(
+                //                                     new RoomMessageEventContent(
+                //                                         body:
+                //                                         $"Please be careful when posting this image: {matchedpolicyData.Reason}, I have spoilered it for you:",
+                //                                         messageType: "m.text") {
+                //                                         Format = "org.matrix.custom.html",
+                //                                         FormattedBody =
+                //                                             $"<font color=\"#FFFF00\">Please be careful when posting this image: {matchedpolicyData.Reason}, I have spoilered it for you:</a></font>"
+                //                                     });
+                //                                 var imageUrl = message.Url;
+                //                                 await room.SendMessageEventAsync(
+                //                                     new RoomMessageEventContent(body: $"CN: {imageUrl}",
+                //                                         messageType: "m.text") {
+                //                                         Format = "org.matrix.custom.html",
+                //                                         FormattedBody = $"""
+                //                                                              <blockquote>
+                //                                                                 <font color=\"#dc143c\" data-mx-color=\"#dc143c\">
+                //                                                                     <b>CN</b>
+                //                                                                 </font>:
+                //                                                                 <a href=\"{imageUrl}\">{matchedpolicyData.Reason}</a><br>
+                //                                                                 <span data-mx-spoiler=\"\">
+                //                                                                     <a href=\"{imageUrl}\">
+                //                                                                         <img src=\"{imageUrl}\" height=\"69\">
+                //                                                                     </a>
+                //                                                                 </span>
+                //                                                              </blockquote>
+                //                                                          """
+                //                                     });
+                //                                 await room.RedactEventAsync(@event.EventId, "Automatically spoilered: " + matchedpolicyData.Reason);
+                //                                 break;
+                //                             }
+                //                             case "mute": {
+                //                                 await room.RedactEventAsync(@event.EventId, matchedpolicyData.Reason);
+                //                                 //change powerlevel to -1
+                //                                 var currentPls = await room.GetPowerLevelsAsync();
+                //                                 if (currentPls is null) {
+                //                                     logger.LogWarning("Unable to get power levels for {room}", room.RoomId);
+                //                                     await _logRoom.SendMessageEventAsync(
+                //                                         MessageFormatter.FormatError($"Unable to get power levels for {MessageFormatter.HtmlFormatMention(room.RoomId)}"));
+                //                                     return;
+                //                                 }
+                //
+                //                                 currentPls.Users ??= new();
+                //                                 currentPls.Users[@event.Sender] = -1;
+                //                                 await room.SendStateEventAsync("m.room.power_levels", currentPls);
+                //                                 break;
+                //                             }
+                //                             case "kick": {
+                //                                 await room.RedactEventAsync(@event.EventId, matchedpolicyData.Reason);
+                //                                 await room.KickAsync(@event.Sender, matchedpolicyData.Reason);
+                //                                 break;
+                //                             }
+                //                             case "ban": {
+                //                                 await room.RedactEventAsync(@event.EventId, matchedpolicyData.Reason);
+                //                                 await room.BanAsync(@event.Sender, matchedpolicyData.Reason);
+                //                                 break;
+                //                             }
+                //                             default: {
+                //                                 throw new ArgumentOutOfRangeException("recommendation",
+                //                                     $"Unknown response type {matchedpolicyData.Recommendation}!");
+                //                             }
+                //                         }
+                //                     }
+                //                 }
             }
             catch (Exception e) {
                 logger.LogError("{}", e.ToString());

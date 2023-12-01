@@ -21,7 +21,7 @@ public class JoinSpaceMembersCommand(IServiceProvider services, HomeserverProvid
         //check if user is admin in control room
         var botData = await ctx.Homeserver.GetAccountDataAsync<BotData>("gay.rory.moderation_bot_data");
         var controlRoom = ctx.Homeserver.GetRoom(botData.ControlRoom);
-        var isAdmin = (await controlRoom.GetPowerLevelsAsync())!.UserHasPermission(ctx.MessageEvent.Sender, "m.room.ban");
+        var isAdmin = (await controlRoom.GetPowerLevelsAsync())!.UserHasStatePermission(ctx.MessageEvent.Sender, "m.room.ban");
         if (!isAdmin) {
             // await ctx.Reply("You do not have permission to use this command!");
             await ctx.Homeserver.GetRoom(botData.LogRoom!).SendMessageEventAsync(
@@ -37,9 +37,9 @@ public class JoinSpaceMembersCommand(IServiceProvider services, HomeserverProvid
 
         await logRoom.SendMessageEventAsync(MessageFormatter.FormatSuccess($"Joining space children of {ctx.Args[0]} with reason: {string.Join(' ', ctx.Args[1..])}"));
         var roomId = ctx.Args[0];
-        var servers = new List<string>() {ctx.Homeserver.ServerName};
+        var servers = new List<string>() { ctx.Homeserver.ServerName };
         if (roomId.StartsWith('[')) {
-            
+
         }
 
         if (roomId.StartsWith('#')) {
