@@ -5,15 +5,13 @@ using System.Text.RegularExpressions;
 using ArcaneLibs.Extensions;
 using LibMatrix;
 using LibMatrix.EventTypes.Spec;
-using LibMatrix.EventTypes.Spec.State;
+using LibMatrix.EventTypes.Spec.State.Policy;
 using LibMatrix.Helpers;
 using LibMatrix.Homeservers;
-using LibMatrix.Interfaces;
 using LibMatrix.RoomTypes;
 using LibMatrix.Services;
 using Microsoft.Extensions.Logging;
 using ModerationBot.AccountData;
-using ModerationBot.StateEventTypes;
 using ModerationBot.StateEventTypes.Policies;
 using ModerationBot.StateEventTypes.Policies.Implementations;
 
@@ -21,6 +19,7 @@ namespace ModerationBot;
 
 public class PolicyEngine(AuthenticatedHomeserverGeneric hs, ILogger<ModerationBot> logger, ModerationBotConfiguration configuration, HomeserverResolverService hsResolver) {
     private Dictionary<string, PolicyList> PolicyListAccountData { get; set; } = new();
+    // ReSharper disable once MemberCanBePrivate.Global
     public List<PolicyList> ActivePolicyLists { get; set; } = new();
     public List<BasePolicy> ActivePolicies { get; set; } = new();
     public Dictionary<string, List<BasePolicy>> ActivePoliciesByType { get; set; } = new();
@@ -47,8 +46,8 @@ public class PolicyEngine(AuthenticatedHomeserverGeneric hs, ILogger<ModerationB
             if (e is not { ErrorCode: "M_NOT_FOUND" }) throw;
         }
 
-        if (!PolicyListAccountData.ContainsKey(botData.DefaultPolicyRoom)) {
-            PolicyListAccountData.Add(botData.DefaultPolicyRoom, new PolicyList() {
+        if (!PolicyListAccountData.ContainsKey(botData.DefaultPolicyRoom!)) {
+            PolicyListAccountData.Add(botData.DefaultPolicyRoom!, new PolicyList() {
                 Trusted = true
             });
             await hs.SetAccountDataAsync("gay.rory.moderation_bot.policy_lists", PolicyListAccountData);
@@ -114,8 +113,8 @@ public class PolicyEngine(AuthenticatedHomeserverGeneric hs, ILogger<ModerationB
         foreach (var activePolicyList in ActivePolicyLists) {
             foreach (var policyEntry in activePolicyList.Policies) {
                 // TODO: implement rule translation
-                BasePolicy policy = policyEntry.TypedContent is BasePolicy ? policyEntry.TypedContent as BasePolicy : policyEntry.RawContent.Deserialize<UnknownPolicy>();
-                if (policy.Entity is null) continue;
+                var policy = policyEntry.TypedContent is BasePolicy ? policyEntry.TypedContent as BasePolicy : policyEntry.RawContent.Deserialize<UnknownPolicy>();
+                if (policy?.Entity is null) continue;
                 policy.PolicyList = activePolicyList;
                 policy.OriginalEvent = policyEntry;
                 activePolicies.Add(policy);
@@ -152,7 +151,7 @@ public class PolicyEngine(AuthenticatedHomeserverGeneric hs, ILogger<ModerationB
 
         if (@event.TypedContent is RoomMessageEventContent msgContent) {
             matchingPolicies.AddRange(await CheckMessageContent(@event));
-            if (msgContent.MessageType == "m.text" || msgContent.MessageType == "m.notice") ; //TODO: implement word etc. filters
+            // if (msgContent.MessageType == "m.text" || msgContent.MessageType == "m.notice") ; //TODO: implement word etc. filters
             if (msgContent.MessageType == "m.image" || msgContent.MessageType == "m.file" || msgContent.MessageType == "m.audio" || msgContent.MessageType == "m.video")
                 matchingPolicies.AddRange(await CheckMedia(@event));
         }

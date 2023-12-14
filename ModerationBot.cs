@@ -1,32 +1,25 @@
-using System.Security.Cryptography;
-using System.Text.RegularExpressions;
 using ArcaneLibs.Extensions;
 using LibMatrix;
 using LibMatrix.EventTypes.Spec;
 using LibMatrix.EventTypes.Spec.State;
+using LibMatrix.EventTypes.Spec.State.Policy;
 using LibMatrix.Helpers;
 using LibMatrix.Homeservers;
-using LibMatrix.Responses;
 using LibMatrix.RoomTypes;
 using LibMatrix.Services;
-using LibMatrix.Utilities.Bot.Interfaces;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ModerationBot.AccountData;
-using ModerationBot.StateEventTypes;
 using ModerationBot.StateEventTypes.Policies;
 
 namespace ModerationBot;
 
-public class ModerationBot(AuthenticatedHomeserverGeneric hs, ILogger<ModerationBot> logger, ModerationBotConfiguration configuration,
-    HomeserverResolverService hsResolver, PolicyEngine engine) : IHostedService {
-    private readonly IEnumerable<ICommand> _commands;
-
+public class ModerationBot(AuthenticatedHomeserverGeneric hs, ILogger<ModerationBot> logger, ModerationBotConfiguration configuration, PolicyEngine engine) : IHostedService {
     private Task _listenerTask;
 
     // private GenericRoom _policyRoom;
-    private GenericRoom _logRoom;
-    private GenericRoom _controlRoom;
+    private GenericRoom? _logRoom;
+    private GenericRoom? _controlRoom;
 
     /// <summary>Triggered when the application host is ready to start the service.</summary>
     /// <param name="cancellationToken">Indicates that the start process has been aborted.</param>
@@ -63,6 +56,10 @@ public class ModerationBot(AuthenticatedHomeserverGeneric hs, ILogger<Moderation
         _controlRoom = hs.GetRoom(botData.ControlRoom);
         foreach (var configurationAdmin in configuration.Admins) {
             var pls = await _controlRoom.GetPowerLevelsAsync();
+            if (pls is null) {
+                await _logRoom?.SendMessageEventAsync(MessageFormatter.FormatWarning($"Control room has no m.room.power_levels?"));
+                continue;
+            }
             pls.SetUserPowerLevel(configurationAdmin, pls.GetUserPowerLevel(hs.UserId));
             await _controlRoom.SendStateEventAsync(RoomPowerLevelEventContent.EventId, pls);
         }

@@ -1,7 +1,6 @@
 using System.Text.Json.Serialization;
 using LibMatrix;
 using LibMatrix.RoomTypes;
-using ModerationBot.StateEventTypes;
 
 namespace ModerationBot;
 

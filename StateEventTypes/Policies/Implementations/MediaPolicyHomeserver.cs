@@ -1,4 +1,3 @@
-using System.Text.Json.Serialization;
 using LibMatrix.EventTypes;
 
 namespace ModerationBot.StateEventTypes.Policies.Implementations;

@@ -1,5 +1,4 @@
 using LibMatrix;
-using LibMatrix.EventTypes.Spec.State;
 using LibMatrix.Homeservers;
 using LibMatrix.Responses;
 using ModerationBot.AccountData;

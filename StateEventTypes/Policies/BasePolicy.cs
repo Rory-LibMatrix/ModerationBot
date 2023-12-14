@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using LibMatrix;
+using LibMatrix.EventTypes;
 using LibMatrix.Interfaces;
 
 namespace ModerationBot.StateEventTypes.Policies;
