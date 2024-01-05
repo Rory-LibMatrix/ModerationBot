@@ -85,8 +85,8 @@ public class PolicyEngine(AuthenticatedHomeserverGeneric hs, ILogger<ModerationB
         var stateEvents = room.GetFullStateAsync();
         await foreach (var stateEvent in stateEvents) {
             if (stateEvent != null && (
-                    stateEvent.GetType.IsAssignableTo(typeof(BasePolicy))
-                    || stateEvent.GetType.IsAssignableTo(typeof(PolicyRuleEventContent))
+                    stateEvent.MappedType.IsAssignableTo(typeof(BasePolicy))
+                    || stateEvent.MappedType.IsAssignableTo(typeof(PolicyRuleEventContent))
                 )) {
                 policyList.Policies.Add(stateEvent);
             }
@@ -253,8 +253,8 @@ public class PolicyEngine(AuthenticatedHomeserverGeneric hs, ILogger<ModerationB
         string raw = "Count | State type | Mapped type", html = "<table><tr><th>Count</th><th>State type</th><th>Mapped type</th></tr>";
         var groupedStates = states.GroupBy(x => x.Type).ToDictionary(x => x.Key, x => x.ToList()).OrderByDescending(x => x.Value.Count);
         foreach (var (type, stateGroup) in groupedStates) {
-            raw += $"{stateGroup.Count} | {type} | {stateGroup[0].GetType.Name}";
-            html += $"<tr><td>{stateGroup.Count}</td><td>{type}</td><td>{stateGroup[0].GetType.Name}</td></tr>";
+            raw += $"{stateGroup.Count} | {type} | {stateGroup[0].MappedType.Name}";
+            html += $"<tr><td>{stateGroup.Count}</td><td>{type}</td><td>{stateGroup[0].MappedType.Name}</td></tr>";
         }
 
         html += "</table>";

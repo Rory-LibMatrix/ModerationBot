@@ -59,8 +59,8 @@ public class DbgDumpAllStateTypesCommand
         string raw = "Count | State type | Mapped type", html = "<table><tr><th>Count</th><th>State type</th><th>Mapped type</th></tr>";
         var groupedStates = states.GroupBy(x => x.Type).ToDictionary(x => x.Key, x => x.ToList()).OrderByDescending(x => x.Value.Count);
         foreach (var (type, stateGroup) in groupedStates) {
-            raw += $"{stateGroup.Count} | {type} | {stateGroup[0].GetType.Name}";
-            html += $"<tr><td>{stateGroup.Count}</td><td>{type}</td><td>{stateGroup[0].GetType.Name}</td></tr>";
+            raw += $"{stateGroup.Count} | {type} | {StateEvent.GetStateEventType(stateGroup[0].Type).Name}";
+            html += $"<tr><td>{stateGroup.Count}</td><td>{type}</td><td>{StateEvent.GetStateEventType(stateGroup[0].Type).Name}</td></tr>";
         }
 
         html += "</table>";

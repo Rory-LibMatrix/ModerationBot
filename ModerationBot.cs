@@ -70,7 +70,7 @@ public class ModerationBot(AuthenticatedHomeserverGeneric hs, ILogger<Moderation
 #pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
         Task.Run(async () => {
             while (!cancellationToken.IsCancellationRequested) {
-                var controlRoomMembers = _controlRoom.GetMembersAsync();
+                var controlRoomMembers = _controlRoom.GetMembersEnumerableAsync();
                 var pls = await _controlRoom.GetPowerLevelsAsync();
                 await foreach (var member in controlRoomMembers) {
                     if ((member.TypedContent as RoomMemberEventContent)?
@@ -110,8 +110,8 @@ public class ModerationBot(AuthenticatedHomeserverGeneric hs, ILogger<Moderation
                     "Got timeline event in {}: {}", @event.RoomId, @event.ToJson(indent: true, ignoreNull: true));
 
                 if (@event != null && (
-                        @event.GetType.IsAssignableTo(typeof(BasePolicy))
-                        || @event.GetType.IsAssignableTo(typeof(PolicyRuleEventContent))
+                        @event.MappedType.IsAssignableTo(typeof(BasePolicy))
+                        || @event.MappedType.IsAssignableTo(typeof(PolicyRuleEventContent))
                     ))
                     await engine.ReloadActivePolicyListById(@event.RoomId);
 
