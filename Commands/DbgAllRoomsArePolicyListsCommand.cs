@@ -14,9 +14,9 @@ public class DbgAllRoomsArePolicyListsCommand
     private GenericRoom logRoom { get; set; }
 
     public async Task<bool> CanInvoke(CommandContext ctx) {
-#if !DEBUG
-        return false;
-#endif
+// #if !DEBUG
+//         return false;
+// #endif
 
         //check if user is admin in control room
         var botData = await ctx.Homeserver.GetAccountDataAsync<BotData>("gay.rory.moderation_bot_data");

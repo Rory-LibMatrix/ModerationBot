@@ -1,5 +1,6 @@
 using ArcaneLibs.Extensions;
 using LibMatrix;
+using LibMatrix.EventTypes;
 using LibMatrix.EventTypes.Spec;
 using LibMatrix.EventTypes.Spec.State;
 using LibMatrix.EventTypes.Spec.State.Policy;
@@ -29,6 +30,7 @@ public class ModerationBot(AuthenticatedHomeserverGeneric hs, ILogger<Moderation
     }
 
     private async Task Run(CancellationToken cancellationToken) {
+        return;
         if (Directory.Exists("bot_data/cache"))
             Directory.GetFiles("bot_data/cache").ToList().ForEach(File.Delete);
 
@@ -112,8 +114,10 @@ public class ModerationBot(AuthenticatedHomeserverGeneric hs, ILogger<Moderation
                 if (@event != null && (
                         @event.MappedType.IsAssignableTo(typeof(BasePolicy))
                         || @event.MappedType.IsAssignableTo(typeof(PolicyRuleEventContent))
-                    ))
+                    )) {
+                    await LogPolicyChange(@event);
                     await engine.ReloadActivePolicyListById(@event.RoomId);
+                }
 
                 var rules = await engine.GetMatchingPolicies(@event);
                 foreach (var matchedRule in rules) {
@@ -262,6 +266,32 @@ public class ModerationBot(AuthenticatedHomeserverGeneric hs, ILogger<Moderation
         });
         await engine.ReloadActivePolicyLists();
         await syncHelper.RunSyncLoopAsync();
+    }
+
+    private async Task LogPolicyChange(StateEventResponse changeEvent) {
+        var room = hs.GetRoom(changeEvent.RoomId!);
+        var message = MessageFormatter.FormatWarning($"Policy change detected in {MessageFormatter.HtmlFormatMessageLink(changeEvent.RoomId, changeEvent.EventId, [hs.ServerName], await room.GetNameOrFallbackAsync())}!");
+        message = message.ConcatLine(new RoomMessageEventContent(body: $"Policy type: {changeEvent.Type} -> {changeEvent.MappedType.Name}") {
+            FormattedBody = $"Policy type: {changeEvent.Type} -> {changeEvent.MappedType.Name}"
+        });
+        var isUpdated = changeEvent.Unsigned.PrevContent is { Count: > 0 };
+        var isRemoved = changeEvent.RawContent is not { Count: > 0 };
+        // if (isUpdated) {
+        //     message = message.ConcatLine(MessageFormatter.FormatSuccess("Rule updated!"));
+        //     message = message.ConcatLine(MessageFormatter.FormatSuccessJson("Old rule:", changeEvent.Unsigned.PrevContent!));
+        // }
+        // else if (isRemoved) {
+        //     message = message.ConcatLine(MessageFormatter.FormatWarningJson("Rule removed!", changeEvent.Unsigned.PrevContent!));
+        // }
+        // else {
+        //     message = message.ConcatLine(MessageFormatter.FormatSuccess("New rule added!"));
+        // }
+        message = message.ConcatLine(MessageFormatter.FormatSuccessJson($"{(isUpdated ? "Updated" : isRemoved ? "Removed" : "New")} rule: {changeEvent.StateKey}", changeEvent.RawContent!));
+        if (isRemoved || isUpdated) {
+            message = message.ConcatLine(MessageFormatter.FormatSuccessJson("Old content: ", changeEvent.Unsigned.PrevContent!));
+        }
+        
+        await _logRoom.SendMessageEventAsync(message);
     }
 
     /// <summary>Triggered when the application host is performing a graceful shutdown.</summary>

@@ -30,6 +30,7 @@ public class JoinSpaceMembersCommand(IServiceProvider services, HomeserverProvid
     public async Task Invoke(CommandContext ctx) {
         var botData = await ctx.Homeserver.GetAccountDataAsync<BotData>("gay.rory.moderation_bot_data");
         logRoom = ctx.Homeserver.GetRoom(botData.LogRoom ?? botData.ControlRoom);
+        var currentRooms = (await ctx.Homeserver.GetJoinedRooms()).Select(x=>x.RoomId).ToList();
 
         await logRoom.SendMessageEventAsync(MessageFormatter.FormatSuccess($"Joining space children of {ctx.Args[0]} with reason: {string.Join(' ', ctx.Args[1..])}"));
         var roomId = ctx.Args[0];
@@ -47,6 +48,7 @@ public class JoinSpaceMembersCommand(IServiceProvider services, HomeserverProvid
         var room = ctx.Homeserver.GetRoom(roomId);
         var tasks = new List<Task<bool>>();
         await foreach (var memberRoom in room.AsSpace.GetChildrenAsync()) {
+            if (currentRooms.Contains(memberRoom.RoomId)) continue;
             servers.Add(room.RoomId.Split(':', 2)[1]);
             servers = servers.Distinct().ToList();
             tasks.Add(JoinRoom(memberRoom, string.Join(' ', ctx.Args[1..]), servers));
@@ -59,8 +61,8 @@ public class JoinSpaceMembersCommand(IServiceProvider services, HomeserverProvid
 
     private async Task<bool> JoinRoom(GenericRoom memberRoom, string reason, List<string> servers) {
         try {
-            await memberRoom.JoinAsync(servers.ToArray(), reason);
-            await logRoom.SendMessageEventAsync(MessageFormatter.FormatSuccess($"Joined room {memberRoom.RoomId}"));
+            var resp = await memberRoom.JoinAsync(servers.ToArray(), reason, checkIfAlreadyMember: false);
+            await logRoom.SendMessageEventAsync(MessageFormatter.FormatSuccess($"Joined room {memberRoom.RoomId} (resp={resp.RoomId})"));
         }
         catch (Exception e) {
             await logRoom.SendMessageEventAsync(MessageFormatter.FormatException($"Failed to join {memberRoom.RoomId}", e));
