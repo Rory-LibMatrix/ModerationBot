@@ -9,7 +9,7 @@ namespace ModerationBot.StateEventTypes.Policies.Implementations;
 [MatrixEvent(EventName = "gay.rory.moderation.rule.media")]
 public class MediaPolicyFile : BasePolicy {
     /// <summary>
-    ///     Hash of the file
+    ///     Hash of the file, hashed with SHA3-256.
     /// </summary>
     [JsonPropertyName("file_hash")]
     public string? FileHash { get; set; }

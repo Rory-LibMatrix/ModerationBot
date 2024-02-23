@@ -6,22 +6,23 @@ using LibMatrix.Helpers;
 using LibMatrix.Services;
 using LibMatrix.Utilities.Bot.Interfaces;
 using ModerationBot.AccountData;
+using ModerationBot.Services;
 using ModerationBot.StateEventTypes.Policies.Implementations;
 
 namespace ModerationBot.Commands;
 
-public class BanMediaCommand(IServiceProvider services, HomeserverProviderService hsProvider, HomeserverResolverService hsResolver, PolicyEngine engine) : ICommand {
+public class BanMediaCommand(HomeserverResolverService hsResolver, PolicyEngine engine, ModerationBotRoomProvider roomProvider) : ICommand {
     public string Name { get; } = "banmedia";
     public string Description { get; } = "Create a policy banning a piece of media, must be used in reply to a message";
 
     public async Task<bool> CanInvoke(CommandContext ctx) {
         //check if user is admin in control room
-        var botData = await ctx.Homeserver.GetAccountDataAsync<BotData>("gay.rory.moderation_bot_data");
-        var controlRoom = ctx.Homeserver.GetRoom(botData.ControlRoom);
+        var controlRoom = await roomProvider.GetControlRoomAsync();
+        var logRoom = await roomProvider.GetLogRoomAsync();
         var isAdmin = (await controlRoom.GetPowerLevelsAsync())!.UserHasStatePermission(ctx.MessageEvent.Sender, "m.room.ban");
         if (!isAdmin) {
             // await ctx.Reply("You do not have permission to use this command!");
-            await ctx.Homeserver.GetRoom(botData.LogRoom!).SendMessageEventAsync(
+            await logRoom.SendMessageEventAsync(
                 new RoomMessageEventContent(body: $"User {ctx.MessageEvent.Sender} tried to use command {Name} but does not have permission!", messageType: "m.text"));
         }
 
@@ -29,10 +30,8 @@ public class BanMediaCommand(IServiceProvider services, HomeserverProviderServic
     }
 
     public async Task Invoke(CommandContext ctx) {
-
-        var botData = await ctx.Homeserver.GetAccountDataAsync<BotData>("gay.rory.moderation_bot_data");
-        var policyRoom = ctx.Homeserver.GetRoom(botData.DefaultPolicyRoom ?? botData.ControlRoom);
-        var logRoom = ctx.Homeserver.GetRoom(botData.LogRoom ?? botData.ControlRoom);
+        var policyRoom = await roomProvider.GetDefaultPolicyRoomAsync();
+        var logRoom = await roomProvider.GetLogRoomAsync();
 
         //check if reply
         var messageContent = ctx.MessageEvent.TypedContent as RoomMessageEventContent;

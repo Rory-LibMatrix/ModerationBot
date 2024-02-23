@@ -30,7 +30,6 @@ public class ModerationBot(AuthenticatedHomeserverGeneric hs, ILogger<Moderation
     }
 
     private async Task Run(CancellationToken cancellationToken) {
-        return;
         if (Directory.Exists("bot_data/cache"))
             Directory.GetFiles("bot_data/cache").ToList().ForEach(File.Delete);
 

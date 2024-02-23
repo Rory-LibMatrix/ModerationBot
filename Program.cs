@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using ModerationBot;
+using ModerationBot.Services;
 
 Console.WriteLine("Hello, World!");
 
@@ -33,6 +34,7 @@ var host = builder.ConfigureServices((_, services) => {
     services.AddBot(withCommands: true);
 
     services.AddSingleton<PolicyEngine>();
+    services.AddSingleton<ModerationBotRoomProvider>();
 
     services.AddHostedService<ModerationBot.ModerationBot>();
 }).UseConsoleLifetime().Build();
