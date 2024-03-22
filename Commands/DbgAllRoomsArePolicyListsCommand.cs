@@ -10,7 +10,9 @@ namespace ModerationBot.Commands;
 public class DbgAllRoomsArePolicyListsCommand
     (IServiceProvider services, HomeserverProviderService hsProvider, HomeserverResolverService hsResolver, PolicyEngine engine) : ICommand {
     public string Name { get; } = "dbg-allroomsarepolicy";
+    public string[]? Aliases { get; }
     public string Description { get; } = "[Debug] mark all rooms as trusted policy rooms";
+    public bool Unlisted { get; }
     private GenericRoom logRoom { get; set; }
 
     public async Task<bool> CanInvoke(CommandContext ctx) {

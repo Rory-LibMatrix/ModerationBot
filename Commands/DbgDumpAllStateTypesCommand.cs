@@ -8,10 +8,11 @@ using ModerationBot.AccountData;
 
 namespace ModerationBot.Commands;
 
-public class DbgDumpAllStateTypesCommand
-    (IServiceProvider services, HomeserverProviderService hsProvider, HomeserverResolverService hsResolver, PolicyEngine engine) : ICommand {
+public class DbgDumpAllStateTypesCommand(IServiceProvider services, HomeserverProviderService hsProvider, HomeserverResolverService hsResolver, PolicyEngine engine) : ICommand {
     public string Name { get; } = "dbg-dumpstatetypes";
+    public string[]? Aliases { get; }
     public string Description { get; } = "[Debug] Dump all state types we can find";
+    public bool Unlisted { get; }
     private GenericRoom logRoom { get; set; }
 
     public async Task<bool> CanInvoke(CommandContext ctx) {
@@ -35,7 +36,6 @@ public class DbgDumpAllStateTypesCommand
     public async Task Invoke(CommandContext ctx) {
         var botData = await ctx.Homeserver.GetAccountDataAsync<BotData>("gay.rory.moderation_bot_data");
         logRoom = ctx.Homeserver.GetRoom(botData.LogRoom ?? botData.ControlRoom);
-
 
         var joinedRooms = await ctx.Homeserver.GetJoinedRooms();
 

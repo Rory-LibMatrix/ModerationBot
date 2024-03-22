@@ -8,7 +8,9 @@ namespace ModerationBot.Commands;
 
 public class JoinRoomCommand(IServiceProvider services, HomeserverProviderService hsProvider, HomeserverResolverService hsResolver, PolicyEngine engine) : ICommand {
     public string Name { get; } = "join";
+    public string[]? Aliases { get; }
     public string Description { get; } = "Join arbitrary rooms";
+    public bool Unlisted { get; }
 
     public async Task<bool> CanInvoke(CommandContext ctx) {
         //check if user is admin in control room
@@ -25,7 +27,6 @@ public class JoinRoomCommand(IServiceProvider services, HomeserverProviderServic
     }
 
     public async Task Invoke(CommandContext ctx) {
-
         var botData = await ctx.Homeserver.GetAccountDataAsync<BotData>("gay.rory.moderation_bot_data");
         var policyRoom = ctx.Homeserver.GetRoom(botData.DefaultPolicyRoom ?? botData.ControlRoom);
         var logRoom = ctx.Homeserver.GetRoom(botData.LogRoom ?? botData.ControlRoom);
@@ -33,9 +34,7 @@ public class JoinRoomCommand(IServiceProvider services, HomeserverProviderServic
         await logRoom.SendMessageEventAsync(MessageFormatter.FormatSuccess($"Joining room {ctx.Args[0]} with reason: {string.Join(' ', ctx.Args[1..])}"));
         var roomId = ctx.Args[0];
         var servers = new List<string>() { ctx.Homeserver.ServerName };
-        if (roomId.StartsWith('[')) {
-
-        }
+        if (roomId.StartsWith('[')) { }
 
         if (roomId.StartsWith('#')) {
             var res = await ctx.Homeserver.ResolveRoomAliasAsync(roomId);

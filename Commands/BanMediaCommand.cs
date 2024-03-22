@@ -13,7 +13,9 @@ namespace ModerationBot.Commands;
 
 public class BanMediaCommand(HomeserverResolverService hsResolver, PolicyEngine engine, ModerationBotRoomProvider roomProvider) : ICommand {
     public string Name { get; } = "banmedia";
+    public string[]? Aliases { get; }
     public string Description { get; } = "Create a policy banning a piece of media, must be used in reply to a message";
+    public bool Unlisted { get; }
 
     public async Task<bool> CanInvoke(CommandContext ctx) {
         //check if user is admin in control room

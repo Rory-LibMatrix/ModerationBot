@@ -10,7 +10,9 @@ namespace ModerationBot.Commands;
 
 public class DbgAniRainbowTest(IServiceProvider services, HomeserverProviderService hsProvider, HomeserverResolverService hsResolver, PolicyEngine engine) : ICommand {
     public string Name { get; } = "dbg-ani-rainbow";
+    public string[]? Aliases { get; }
     public string Description { get; } = "[Debug] animated rainbow :)";
+    public bool Unlisted { get; }
     private GenericRoom logRoom { get; set; }
 
     public async Task<bool> CanInvoke(CommandContext ctx) {

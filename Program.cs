@@ -31,7 +31,7 @@ var host = builder.ConfigureServices((_, services) => {
     services.AddSingleton<ModerationBotConfiguration>();
 
     services.AddRoryLibMatrixServices();
-    services.AddBot(withCommands: true);
+    services.AddMatrixBot().AddCommandHandler().DiscoverAllCommands();
 
     services.AddSingleton<PolicyEngine>();
     services.AddSingleton<ModerationBotRoomProvider>();

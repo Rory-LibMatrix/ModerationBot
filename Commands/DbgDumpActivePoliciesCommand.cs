@@ -7,10 +7,11 @@ using ModerationBot.AccountData;
 
 namespace ModerationBot.Commands;
 
-public class DbgDumpActivePoliciesCommand
-    (IServiceProvider services, HomeserverProviderService hsProvider, HomeserverResolverService hsResolver, PolicyEngine engine) : ICommand {
+public class DbgDumpActivePoliciesCommand(IServiceProvider services, HomeserverProviderService hsProvider, HomeserverResolverService hsResolver, PolicyEngine engine) : ICommand {
     public string Name { get; } = "dbg-dumppolicies";
+    public string[]? Aliases { get; }
     public string Description { get; } = "[Debug] Dump all active policies";
+    public bool Unlisted { get; }
     private GenericRoom logRoom { get; set; }
 
     public async Task<bool> CanInvoke(CommandContext ctx) {

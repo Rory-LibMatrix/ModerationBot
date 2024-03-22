@@ -10,7 +10,9 @@ namespace ModerationBot.Commands;
 
 public class JoinSpaceMembersCommand(IServiceProvider services, HomeserverProviderService hsProvider, HomeserverResolverService hsResolver, PolicyEngine engine) : ICommand {
     public string Name { get; } = "joinspacemembers";
+    public string[]? Aliases { get; }
     public string Description { get; } = "Join all rooms in space";
+    public bool Unlisted { get; }
     private GenericRoom logRoom { get; set; }
 
     public async Task<bool> CanInvoke(CommandContext ctx) {
@@ -30,14 +32,12 @@ public class JoinSpaceMembersCommand(IServiceProvider services, HomeserverProvid
     public async Task Invoke(CommandContext ctx) {
         var botData = await ctx.Homeserver.GetAccountDataAsync<BotData>("gay.rory.moderation_bot_data");
         logRoom = ctx.Homeserver.GetRoom(botData.LogRoom ?? botData.ControlRoom);
-        var currentRooms = (await ctx.Homeserver.GetJoinedRooms()).Select(x=>x.RoomId).ToList();
+        var currentRooms = (await ctx.Homeserver.GetJoinedRooms()).Select(x => x.RoomId).ToList();
 
         await logRoom.SendMessageEventAsync(MessageFormatter.FormatSuccess($"Joining space children of {ctx.Args[0]} with reason: {string.Join(' ', ctx.Args[1..])}"));
         var roomId = ctx.Args[0];
         var servers = new List<string>() { ctx.Homeserver.ServerName };
-        if (roomId.StartsWith('[')) {
-
-        }
+        if (roomId.StartsWith('[')) { }
 
         if (roomId.StartsWith('#')) {
             var res = await ctx.Homeserver.ResolveRoomAliasAsync(roomId);

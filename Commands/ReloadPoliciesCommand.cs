@@ -8,7 +8,9 @@ namespace ModerationBot.Commands;
 
 public class ReloadPoliciesCommand(IServiceProvider services, HomeserverProviderService hsProvider, HomeserverResolverService hsResolver, PolicyEngine engine) : ICommand {
     public string Name { get; } = "reloadpolicies";
+    public string[]? Aliases { get; }
     public string Description { get; } = "Reload policies";
+    public bool Unlisted { get; }
 
     public async Task<bool> CanInvoke(CommandContext ctx) {
         if (ctx.MessageEvent.Sender == "@cadence:cadence.moe") return true;
@@ -26,11 +28,10 @@ public class ReloadPoliciesCommand(IServiceProvider services, HomeserverProvider
     }
 
     public async Task Invoke(CommandContext ctx) {
-
         var botData = await ctx.Homeserver.GetAccountDataAsync<BotData>("gay.rory.moderation_bot_data");
         var policyRoom = ctx.Homeserver.GetRoom(botData.DefaultPolicyRoom ?? botData.ControlRoom);
         var logRoom = ctx.Homeserver.GetRoom(botData.LogRoom ?? botData.ControlRoom);
-        
+
         await logRoom.SendMessageEventAsync(MessageFormatter.FormatSuccess($"Reloading policy lists due to manual invocation!!!!"));
         await engine.ReloadActivePolicyLists();
     }
