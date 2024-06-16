@@ -45,7 +45,7 @@ public class BanMediaCommand(HomeserverResolverService hsResolver, PolicyEngine 
                         messageType: "m.text"));
 
                 //get replied message
-                var repliedMessage = await ctx.Room.GetEventAsync<StateEventResponse>(messageContent.RelatesTo!.InReplyTo!.EventId);
+                var repliedMessage = await ctx.Room.GetEventAsync(messageContent.RelatesTo!.InReplyTo!.EventId);
 
                 //check if recommendation is in list
                 if (ctx.Args.Length < 2) {
