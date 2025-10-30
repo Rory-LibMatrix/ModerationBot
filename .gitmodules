@@ -1,0 +1,3 @@
+[submodule "LibMatrix"]
+	path = LibMatrix
+	url = rory.gay:git/matrix/LibMatrix.git

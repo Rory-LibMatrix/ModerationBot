@@ -17,8 +17,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-      <ProjectReference Include="..\..\LibMatrix\LibMatrix.csproj" />
-      <ProjectReference Include="..\..\Utilities\LibMatrix.Utilities.Bot\LibMatrix.Utilities.Bot.csproj" />
+      <ProjectReference Include="..\LibMatrix\LibMatrix\LibMatrix.csproj" />
+      <ProjectReference Include="..\LibMatrix\Utilities\LibMatrix.Utilities.Bot\LibMatrix.Utilities.Bot.csproj" />
   </ItemGroup>
 
   <ItemGroup>
