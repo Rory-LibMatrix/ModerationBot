@@ -1,9 +1,11 @@
+using ArcaneLibs.Collections;
 using ArcaneLibs.Extensions;
 using LibMatrix;
 using LibMatrix.EventTypes;
 using LibMatrix.EventTypes.Spec;
 using LibMatrix.EventTypes.Spec.State;
 using LibMatrix.EventTypes.Spec.State.Policy;
+using LibMatrix.EventTypes.Spec.State.RoomInfo;
 using LibMatrix.Helpers;
 using LibMatrix.Homeservers;
 using LibMatrix.RoomTypes;
@@ -21,6 +23,8 @@ public class ModerationBot(AuthenticatedHomeserverGeneric hs, ILogger<Moderation
     // private GenericRoom _policyRoom;
     private GenericRoom? _logRoom;
     private GenericRoom? _controlRoom;
+
+    private ExpiringSemaphoreCache<string[]> _roomServerListCache = new();
 
     /// <summary>Triggered when the application host is ready to start the service.</summary>
     /// <param name="cancellationToken">Indicates that the start process has been aborted.</param>
@@ -61,9 +65,11 @@ public class ModerationBot(AuthenticatedHomeserverGeneric hs, ILogger<Moderation
                 await _logRoom?.SendMessageEventAsync(MessageFormatter.FormatWarning($"Control room has no m.room.power_levels?"));
                 continue;
             }
+
             pls.SetUserPowerLevel(configurationAdmin, pls.GetUserPowerLevel(hs.UserId));
             await _controlRoom.SendStateEventAsync(RoomPowerLevelEventContent.EventId, pls);
         }
+
         var syncHelper = new SyncHelper(hs);
 
         List<string> admins = new();
@@ -89,7 +95,8 @@ public class ModerationBot(AuthenticatedHomeserverGeneric hs, ILogger<Moderation
                     x.Type == "m.room.member" && x.StateKey == hs.UserId);
             logger.LogInformation("Got invite to {RoomId} by {Sender} with reason: {Reason}", args.Key, inviteEvent!.Sender,
                 (inviteEvent.TypedContent as RoomMemberEventContent)!.Reason);
-            await _logRoom.SendMessageEventAsync(MessageFormatter.FormatSuccess($"Bot invited to {MessageFormatter.HtmlFormatMention(args.Key)} by {MessageFormatter.HtmlFormatMention(inviteEvent.Sender)}"));
+            await _logRoom.SendMessageEventAsync(
+                MessageFormatter.FormatSuccess($"Bot invited to {MessageFormatter.HtmlFormatMention(args.Key)} by {MessageFormatter.HtmlFormatMention(inviteEvent.Sender)}"));
             if (admins.Contains(inviteEvent.Sender)) {
                 try {
                     await _logRoom.SendMessageEventAsync(MessageFormatter.FormatSuccess($"Joining {MessageFormatter.HtmlFormatMention(args.Key)}..."));
@@ -118,10 +125,34 @@ public class ModerationBot(AuthenticatedHomeserverGeneric hs, ILogger<Moderation
                     await engine.ReloadActivePolicyListById(@event.RoomId);
                 }
 
+                string[] roomServerList = await _roomServerListCache.GetOrAdd(@event.RoomId, async () => {
+                    logger.LogInformation("Refeshing server list for room {roomId}", room.RoomId);
+                    var servers = (await room.GetMembersByHomeserverAsync())
+                        .ToDictionary(x => x.Key, x => x.Value.Count)
+                        .OrderByDescending(x => x.Value)
+                        .Take(5)
+                        .Select(x => x.Key)
+                        .ToArray();
+                    logger.LogInformation("Got server list for room {roomId}: {top5Servers}", room.RoomId, string.Join(", ", servers));
+                    return servers;
+                }, TimeSpan.FromHours(1));
+
                 var rules = await engine.GetMatchingPolicies(@event);
                 foreach (var matchedRule in rules) {
+                    string[] matchedRuleRoomServerList = await _roomServerListCache.GetOrAdd(matchedRule.OriginalEvent.RoomId, async () => {
+                        logger.LogInformation("Refeshing server list for room {roomId}", room.RoomId);
+                        var servers = (await room.GetMembersByHomeserverAsync())
+                            .ToDictionary(x => x.Key, x => x.Value.Count)
+                            .OrderByDescending(x => x.Value)
+                            .Take(5)
+                            .Select(x => x.Key)
+                            .ToArray();
+                        logger.LogInformation("Got server list for room {roomId}: {top5Servers}", room.RoomId, string.Join(", ", servers));
+                        return servers;
+                    }, TimeSpan.FromHours(1));
                     await _logRoom.SendMessageEventAsync(MessageFormatter.FormatSuccessJson(
-                        $"{MessageFormatter.HtmlFormatMessageLink(eventId: @event.EventId, roomId: room.RoomId, displayName: "Event")} matched {MessageFormatter.HtmlFormatMessageLink(eventId: @matchedRule.OriginalEvent.EventId, roomId: matchedRule.PolicyList.Room.RoomId, displayName: "rule")}", @matchedRule.OriginalEvent.RawContent));
+                        $"{MessageFormatter.HtmlFormatMessageLink(eventId: @event.EventId, roomId: room.RoomId, displayName: "Event", servers: roomServerList)} matched {MessageFormatter.HtmlFormatMessageLink(eventId: @matchedRule.OriginalEvent.EventId, roomId: matchedRule.PolicyList.Room.RoomId, displayName: "rule", servers: matchedRuleRoomServerList)}",
+                        @matchedRule.OriginalEvent.RawContent));
                 }
 
                 if (configuration.DemoMode) {
@@ -269,11 +300,12 @@ public class ModerationBot(AuthenticatedHomeserverGeneric hs, ILogger<Moderation
 
     private async Task LogPolicyChange(StateEventResponse changeEvent) {
         var room = hs.GetRoom(changeEvent.RoomId!);
-        var message = MessageFormatter.FormatWarning($"Policy change detected in {MessageFormatter.HtmlFormatMessageLink(changeEvent.RoomId, changeEvent.EventId, [hs.ServerName], await room.GetNameOrFallbackAsync())}!");
+        var message = MessageFormatter.FormatWarning(
+            $"Policy change detected in {MessageFormatter.HtmlFormatMessageLink(changeEvent.RoomId, changeEvent.EventId, [hs.ServerName], await room.GetNameOrFallbackAsync())}!");
         message = message.ConcatLine(new RoomMessageEventContent(body: $"Policy type: {changeEvent.Type} -> {changeEvent.MappedType.Name}") {
             FormattedBody = $"Policy type: {changeEvent.Type} -> {changeEvent.MappedType.Name}"
         });
-        var isUpdated = changeEvent.Unsigned.PrevContent is { Count: > 0 };
+        var isUpdated = changeEvent.Unsigned?["prev_content"]?.AsObject() is { Count: > 0 };
         var isRemoved = changeEvent.RawContent is not { Count: > 0 };
         // if (isUpdated) {
         //     message = message.ConcatLine(MessageFormatter.FormatSuccess("Rule updated!"));
@@ -285,11 +317,12 @@ public class ModerationBot(AuthenticatedHomeserverGeneric hs, ILogger<Moderation
         // else {
         //     message = message.ConcatLine(MessageFormatter.FormatSuccess("New rule added!"));
         // }
-        message = message.ConcatLine(MessageFormatter.FormatSuccessJson($"{(isUpdated ? "Updated" : isRemoved ? "Removed" : "New")} rule: {changeEvent.StateKey}", changeEvent.RawContent!));
+        message = message.ConcatLine(MessageFormatter.FormatSuccessJson($"{(isUpdated ? "Updated" : isRemoved ? "Removed" : "New")} rule: {changeEvent.StateKey}",
+            changeEvent.RawContent!));
         if (isRemoved || isUpdated) {
-            message = message.ConcatLine(MessageFormatter.FormatSuccessJson("Old content: ", changeEvent.Unsigned.PrevContent!));
+            message = message.ConcatLine(MessageFormatter.FormatSuccessJson("Old content: ", changeEvent.Unsigned?["prev_content"] ?? ""));
         }
-        
+
         await _logRoom.SendMessageEventAsync(message);
     }
 
@@ -298,5 +331,4 @@ public class ModerationBot(AuthenticatedHomeserverGeneric hs, ILogger<Moderation
     public async Task StopAsync(CancellationToken cancellationToken) {
         logger.LogInformation("Shutting down bot!");
     }
-
 }

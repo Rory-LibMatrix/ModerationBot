@@ -47,14 +47,14 @@ public class JoinSpaceMembersCommand(IServiceProvider services, HomeserverProvid
 
         var room = ctx.Homeserver.GetRoom(roomId);
         var tasks = new List<Task<bool>>();
-        await foreach (var memberRoom in room.AsSpace.GetChildrenAsync()) {
+        await foreach (var memberRoom in room.AsSpace().GetChildrenAsync()) {
             if (currentRooms.Contains(memberRoom.RoomId)) continue;
             servers.Add(room.RoomId.Split(':', 2)[1]);
             servers = servers.Distinct().ToList();
             tasks.Add(JoinRoom(memberRoom, string.Join(' ', ctx.Args[1..]), servers));
         }
 
-        await foreach (var b in tasks.ToAsyncEnumerable()) {
+        await foreach (var b in tasks.ToAsyncResultEnumerable()) {
             await Task.Delay(50);
         }
     }

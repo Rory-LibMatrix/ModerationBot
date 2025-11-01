@@ -61,7 +61,7 @@ public class PolicyEngine(AuthenticatedHomeserverGeneric hs, ILogger<ModerationB
             loadTasks.Add(LoadPolicyListAsync(room, policyList));
         }
 
-        await foreach (var policyList in loadTasks.ToAsyncEnumerable()) {
+        await foreach (var policyList in loadTasks.ToAsyncResultEnumerable()) {
             policyLists.Add(policyList);
 
             if (true || policyList.Policies.Count >= 256 || policyLists.Count == PolicyListAccountData.Count) {
@@ -195,7 +195,7 @@ public class PolicyEngine(AuthenticatedHomeserverGeneric hs, ILogger<ModerationB
                 }
             }
 
-        var resolvedUri = await hsResolver.ResolveMediaUri(mxcUri.Split('/')[2], mxcUri);
+        var resolvedUri = await hs.GetMediaUrlAsync(mxcUri);
         var uriHash = hashAlgo.ComputeHash(mxcUri.AsBytes().ToArray());
         byte[]? fileHash = null;
 
@@ -204,16 +204,9 @@ public class PolicyEngine(AuthenticatedHomeserverGeneric hs, ILogger<ModerationB
         }
         catch (Exception ex) {
             await _logRoom.SendMessageEventAsync(
-                MessageFormatter.FormatException($"Error calculating file hash for {mxcUri} via {mxcUri.Split('/')[2]} ({resolvedUri}), retrying via {hs.BaseUrl}...",
+                MessageFormatter.FormatException($"Error calculating file hash for {mxcUri} ({resolvedUri})!",
                     ex));
-            try {
-                resolvedUri = await hsResolver.ResolveMediaUri(hs.BaseUrl, mxcUri);
-                fileHash = await hashAlgo.ComputeHashAsync(await hs.ClientHttpClient.GetStreamAsync(resolvedUri));
-            }
-            catch (Exception ex2) {
-                await _logRoom.SendMessageEventAsync(
-                    MessageFormatter.FormatException($"Error calculating file hash via {hs.BaseUrl} ({resolvedUri})!", ex2));
-            }
+            return [];
         }
 
         logger.LogInformation("Checking media {url} with hash {hash}", resolvedUri, fileHash);

@@ -64,7 +64,7 @@ public class BanMediaCommand(HomeserverResolverService hsResolver, PolicyEngine 
 
                 //hash file
                 var mxcUri = (repliedMessage.TypedContent as RoomMessageEventContent).Url!;
-                var resolvedUri = await hsResolver.ResolveMediaUri(mxcUri.Split('/')[2], mxcUri);
+                var resolvedUri = await ctx.Homeserver.GetMediaUrlAsync(mxcUri);
                 var hashAlgo = SHA3_256.Create();
                 var uriHash = hashAlgo.ComputeHash(mxcUri.AsBytes().ToArray());
                 byte[]? fileHash = null;
@@ -74,17 +74,9 @@ public class BanMediaCommand(HomeserverResolverService hsResolver, PolicyEngine 
                 }
                 catch (Exception ex) {
                     await logRoom.SendMessageEventAsync(
-                        MessageFormatter.FormatException($"Error calculating file hash for {mxcUri} via {mxcUri.Split('/')[2]}, retrying via {ctx.Homeserver.BaseUrl}...",
+                        MessageFormatter.FormatException($"Error calculating file hash for {mxcUri}!",
                             ex));
-                    try {
-                        resolvedUri = await hsResolver.ResolveMediaUri(ctx.Homeserver.BaseUrl, mxcUri);
-                        fileHash = await hashAlgo.ComputeHashAsync(await ctx.Homeserver.ClientHttpClient.GetStreamAsync(resolvedUri));
-                    }
-                    catch (Exception ex2) {
-                        await ctx.Room.SendMessageEventAsync(MessageFormatter.FormatException("Error calculating file hash", ex2));
-                        await logRoom.SendMessageEventAsync(
-                            MessageFormatter.FormatException($"Error calculating file hash via {ctx.Homeserver.BaseUrl}!", ex2));
-                    }
+                    return;
                 }
 
                 MediaPolicyFile policy;

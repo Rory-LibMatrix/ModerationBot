@@ -39,7 +39,7 @@ public class DbgDumpAllStateTypesCommand(IServiceProvider services, HomeserverPr
 
         var joinedRooms = await ctx.Homeserver.GetJoinedRooms();
 
-        var tasks = joinedRooms.Select(GetStateTypes).ToAsyncEnumerable();
+        var tasks = joinedRooms.Select(GetStateTypes).ToAsyncResultEnumerable();
         await foreach (var (room, (raw, html)) in tasks) {
             await ctx.Room.SendMessageEventAsync(new RoomMessageEventContent("m.text") {
                 Body = $"States for {room.RoomId}:\n{raw}",
